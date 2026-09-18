@@ -1,123 +1,45 @@
-# Pertemuan 3 - PBO
+# Sesi 3 — Constructor Berdelegasi, Anggota Statis, dan Konstanta: Rekening Bank
 
-Ringkasan singkat: materi ini membahas constructor berdelegasi, anggota statis, dan konstanta dalam Java.
+## Nama Domain
+**Rekening Bank** — mencatat data rekening nasabah dan mengelola saldonya (setoran, penarikan, bunga tahunan, dan biaya administrasi).
 
-## Main.java
-```java
-public class Main {
-    public static void main(String[] args) {
-        System.out.println("Jumlah rekening di awal: " + RekeningBank.getJumlahRekening());
+## Cara Kerja Sederhana
 
-        RekeningBank a = new RekeningBank("111", "Ani", 1_000_000);
-        RekeningBank b = new RekeningBank("222", "Budi");
-        RekeningBank c = new RekeningBank("333", "Citra", 250_000);
+Bayangkan class `RekeningBank` seperti buku tabungan fisik. Setiap buku tabungan punya nomor rekening yang tidak pernah berubah, nama pemilik, dan saldo yang bisa naik-turun lewat transaksi yang tercatat.
 
-        System.out.println(a);
-        System.out.println(b);
-        System.out.println(c);
+1. **Dua constructor, satu sumber kebenaran** — `RekeningBank` punya constructor ringkas `RekeningBank(nomor, pemilik)` untuk rekening baru bersaldo nol, dan constructor lengkap `RekeningBank(nomor, pemilik, saldoAwal)` untuk rekening dengan setoran awal. Constructor ringkas **tidak** menyalin ulang logika validasi — ia mendelegasikan ke constructor lengkap lewat `this(nomor, pemilik, 0)`. Dengan begitu, hanya ada satu tempat yang menjaga aturan pembuatan objek, dan constructor ringkas otomatis ikut aman kalau aturan itu berubah di kemudian hari.
 
-        System.out.println("Jumlah rekening sekarang: " + RekeningBank.getJumlahRekening()
-                           + "   (seharusnya 3, bukan 4)");
+2. **Konstanta menggantikan angka ajaib** — Nilai seperti bunga tahunan (0.025), biaya administrasi (5000), dan batas penarikan sekali (5.000.000) dideklarasikan sebagai `public static final` bernama, bukan ditulis langsung di badan method. Ini membuat maksud angka tersebut jelas dibaca, dan kalau kebijakan bank berubah, cukup diubah di satu tempat.
 
-        System.out.println();
-        System.out.println("=== Operasi ===");
-        a.setor(500_000);
-        System.out.println("Setelah setor 500.000  -> " + a);
+3. **Anggota statis melacak seluruh objek** — Selain data per-rekening (nomor, pemilik, saldo), class ini juga punya field statis privat yang menghitung total jumlah rekening yang pernah dibuat. Field ini bernilai awal 0, dan bertambah setiap kali constructor lengkap dipanggil — karena field statis milik class, bukan milik satu objek, nilainya dibagi oleh semua rekening.
 
-        try {
-            a.tarik(9_999_999);
-            System.out.println("  MASALAH: penarikan melebihi batas seharusnya ditolak!");
-        } catch (RuntimeException e) {
-            System.out.println("  Ditolak: " + e.getMessage());
-        }
+4. **Transaksi tetap dijaga lewat method, bukan setter bebas** — `setor(jumlah)` dan `tarik(jumlah)` memastikan jumlah transaksi selalu positif, dan `tarik()` menolak permintaan yang melebihi batas penarikan sekali (dilempar sebagai `RuntimeException`/`InvalidArgumentException` agar program pemanggil bisa menangkap dan menampilkan pesan, tanpa saldo sempat berubah). `potongBiayaAdmin()` mengurangi saldo dengan biaya admin tetap, dan `bungaSetahun(saldo)` dihitung sebagai method statis karena perhitungannya tidak bergantung pada satu objek tertentu — cukup diberi angka saldo, hasilnya bisa dihitung.
 
-        b.potongBiayaAdmin();
-        System.out.println("Budi setelah potong admin: " + b + "   (saldo tidak boleh negatif)");
+5. **Versi PHP sebagai pembanding** — `main.php` menunjukkan pola yang sama dengan gaya PHP: constructor biasa `new RekeningBank(...)` untuk kasus umum, dan *named constructor* statis `RekeningBank::rekeningPelajar(...)` sebagai cara alternatif membuat objek dengan aturan/nama yang lebih deskriptif — konsep yang sejalan dengan constructor delegation di Java.
 
-        System.out.printf("Bunga setahun dari saldo Ani: Rp%,.2f%n",
-                RekeningBank.bungaSetahun(a.getSaldo()));
-    }
-}
-```
+Singkatnya: aturan pembuatan dan perubahan data `RekeningBank` dijaga di dalam class itu sendiri lewat constructor delegation, konstanta bernama, dan method transaksi. Program pemanggil (`Main.java` / `main.php`) tinggal memanggil method-nya dan menangani penolakan kalau transaksi tidak valid.
 
-## RekeningBank.java
-```java
-/**
- * Sesi 3 — constructor berdelegasi, anggota statis, dan konstanta.
- */
-public class RekeningBank {
+## Invarian & Alasannya
 
-    public static final double BUNGA_TAHUNAN = 0.025;
-    public static final double BIAYA_ADMIN = 5000;
-    public static final double BATAS_TARIK_SEKALI = 5000000;
+1. **Saldo tidak pernah negatif.**
+   Saldo mewakili uang nyata milik nasabah. Nilai negatif tidak punya makna dan akan merusak logika transaksi berikutnya (bunga, biaya admin, penarikan).
 
-    private static int jumlahRekening = 0;
+2. **Nomor rekening tidak berubah setelah objek dibuat.**
+   Nomor rekening adalah identitas unik nasabah. Kalau bisa diubah setelah rekening dibuat, catatan transaksi lama bisa jadi merujuk ke identitas yang salah.
 
-    private final String nomor;
-    private final String pemilik;
-    private double saldo;
+3. **Setoran dan penarikan selalu bernilai positif.**
+   Transaksi bernilai nol atau negatif tidak masuk akal secara bisnis, dan bisa dipakai untuk menyelinapkan perubahan saldo yang tidak sah (misalnya "menarik" jumlah negatif yang sebenarnya menambah saldo).
 
-    public RekeningBank(String nomor, String pemilik) {
-        this(nomor, pemilik, 0);
-    }
+Ketiga invarian ini ditegakkan di dalam class `RekeningBank`, bukan di `Main`/`main.php`:
+- Invarian 1 dan 3 dicek di constructor lengkap serta di method `setor()` dan `tarik()`.
+- Invarian 2 dijaga dengan mendeklarasikan `nomor` sebagai `final` (Java) / `readonly` (PHP) — tidak ada setter untuk field ini.
+- Tidak ada setter bebas untuk `saldo` — satu-satunya cara mengubahnya adalah lewat `setor()`, `tarik()`, `potongBiayaAdmin()`, yang semuanya menjaga invarian di atas.
+- Angka ajaib (bunga, biaya admin, batas penarikan) dipindahkan ke konstanta `public static final` agar aturan bisnis mudah ditelusuri dan diubah di satu tempat, bukan tersebar di banyak baris kode.
 
-    public RekeningBank(String nomor, String pemilik, double saldoAwal) {
-        if (nomor == null || nomor.isBlank()) {
-            throw new IllegalArgumentException("Nomor rekening tidak boleh kosong");
-        }
-        if (saldoAwal < 0) {
-            throw new IllegalArgumentException("Saldo awal tidak boleh negatif");
-        }
+## Deklarasi Penggunaan AI
 
-        this.nomor = nomor;
-        this.pemilik = pemilik;
-        this.saldo = saldoAwal;
-        jumlahRekening++;
-    }
-
-    public void setor(double jumlah) {
-        if (jumlah <= 0) {
-            throw new IllegalArgumentException("Jumlah setoran harus positif");
-        }
-        saldo += jumlah;
-    }
-
-    public void tarik(double jumlah) {
-        if (jumlah <= 0) {
-            throw new IllegalArgumentException("Jumlah penarikan harus positif");
-        }
-        if (jumlah > saldo) {
-            throw new IllegalArgumentException("Saldo tidak mencukupi");
-        }
-        if (jumlah > BATAS_TARIK_SEKALI) {
-            throw new IllegalArgumentException("Melebihi batas penarikan sekali transaksi");
-        }
-        saldo -= jumlah;
-    }
-
-    public void potongBiayaAdmin() {
-        saldo = Math.max(0, saldo - BIAYA_ADMIN);
-    }
-
-    public static int getJumlahRekening() {
-        return jumlahRekening;
-    }
-
-    public static double bungaSetahun(double pokok) {
-        return pokok * BUNGA_TAHUNAN;
-    }
-
-    public double getSaldo() { return saldo; }
-    public String getNomor() { return nomor; }
-
-    @Override
-    public String toString() {
-        return String.format("Rekening[%s] %-14s Rp%,.2f", nomor, pemilik, saldo);
-    }
-}
-```
-
-## Catatan
-- saldo tidak boleh negatif
-- nomor rekening tetap setelah dibuat
-- setoran dan penarikan harus bernilai positif
+Bagian struktur kode (class `RekeningBank`, `Main`, dan `main.php`) disusun dengan bantuan Claude (Anthropic), mengikuti pola dan ketentuan yang diberikan pada materi Pertemuan 3 (constructor berdelegasi, anggota statis, dan konstanta) sebagai referensi gaya penulisan. Pengisian TODO (konstanta bernama, field statis penghitung rekening, dan delegasi constructor), serta verifikasi akhir (compile & run), tetap harus dilakukan/diverifikasi oleh mahasiswa sendiri sebelum commit.
+![alt text](image.png)
+![alt text](image-1.png)
+![alt text](image-2.png)
+![alt text](image-3.png)

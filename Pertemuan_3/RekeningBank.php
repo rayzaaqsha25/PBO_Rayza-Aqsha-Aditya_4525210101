@@ -27,16 +27,15 @@ class RekeningBank
         $this->saldo = $saldoAwal;
     }
 
-    /**
-     * TODO 5: named constructor — rekening pelajar, saldo awal nol.
-     *         Gunakan `new static()`, BUKAN `new self()`.
-     *         Alasannya ada di modul teori pertemuan 3 (LateBinding.php).
-     */
-    public static function rekeningPelajar(string $nomor, string $pemilik): static
-    {
-        throw new RuntimeException('TODO 5 belum dikerjakan');
-    }
-
+   /**
+ * TODO 5: named constructor — rekening pelajar, saldo awal nol.
+ *         Gunakan `new static()`, BUKAN `new self()`.
+ *         Alasannya ada di modul teori pertemuan 3 (LateBinding.php).
+ */
+public static function rekeningPelajar(string $nomor, string $pemilik): static
+{
+    return new static($nomor, $pemilik, 0);
+}
     public function setor(float $jumlah): void
     {
         // TODO 6
